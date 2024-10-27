@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-arbejdsløshed_filepath = '/Users/furatnassaralha/Desktop/Programmering/Programmering/Arbedsløshed/arbejdsløshed_dkstatistik.xlsx'
-bnp_filepath = '/Users/furatnassaralha/Desktop/Programmering/Programmering/Arbedsløshed/bnp.xlsx'
-rente_filepath = '/Users/furatnassaralha/Desktop/Programmering/Programmering/Arbedsløshed/rente.xlsx'
+unemployment_filepath = '/Users/furatnassaralha/Desktop/Programmering/Programmering/Arbedsløshed/arbejdsløshed_dkstatistik.xlsx'
+gdp_filepath = '/Users/furatnassaralha/Desktop/Programmering/Programmering/Arbedsløshed/bnp.xlsx'
+interest_rate_filepath = '/Users/furatnassaralha/Desktop/Programmering/Programmering/Arbedsløshed/rente.xlsx'
 
-def load_and_clean_arbejdsløshed(filepath):
+def load_and_clean_unemployment(filepath):
     df = pd.read_excel(filepath)
     df = df.drop(columns='Ledighedsindikator efter sæsonkorrigering og faktiske tal, tid og ydelsestype')
     df = df.rename(columns={'Unnamed: 1': 'Tid', 'Unnamed: 2': 'Antal Ledige'})
@@ -14,19 +14,19 @@ def load_and_clean_arbejdsløshed(filepath):
     df['Tid'] = pd.to_datetime(df['Tid'], format='%YM%m')
     return df.set_index('Tid')
 
-def load_and_clean_bnp(filepath):
+def load_and_clean_gdp(filepath):
     df = pd.read_excel(filepath)
-    df = df.rename(columns={'Unnamed: 0': 'Tid', 'Unnamed: 1': 'BNP'})
-    df['BNP'] = pd.to_numeric(df['BNP'], errors='coerce')
+    df = df.rename(columns={'Unnamed: 0': 'Time', 'Unnamed: 1': 'GDP'})
+    df['GDP'] = pd.to_numeric(df['GDP'], errors='coerce')
     df = df.dropna()
-    df['Tid'] = pd.to_datetime(df['Tid'], format='%Y')
-    return df.set_index('Tid')
+    df['Time'] = pd.to_datetime(df['Time'], format='%Y')
+    return df.set_index('Time')
 
-def load_and_clean_rente(filepath):
+def load_and_clean_interest_rate(filepath):
     df = pd.read_excel(filepath)
-    df = df.drop(df.columns[0], axis=1)  # Drop the first unnamed column
+    df = df.drop(df.columns[0], axis=1)
     df = df.rename(columns={'Unnamed: 2': 'Tid', 'Unnamed: 3': 'Procent'})
-    
+
     df['Tid'] = df['Tid'].drop_duplicates().dropna().reset_index(drop=True)
 
     df_first_part = df.loc[0:298, "Procent"].reset_index(drop=True)
@@ -51,35 +51,40 @@ events = [
 def dual_axis_plot_with_events(df1, col1, df2, col2, title, y1_label, y2_label, events):
     fig, ax1 = plt.subplots(figsize=(15, 8))
 
-    ax1.plot(df1.index, df1[col1], color='blue', label=col1)
-    ax1.set_xlabel('År')
+    line1 = ax1.plot(df1.index, df1[col1], color='blue', label=y1_label)
+    ax1.set_xlabel('Year')
     ax1.set_ylabel(y1_label, color='blue')
     ax1.tick_params(axis='y', labelcolor='blue')
 
     ax2 = ax1.twinx()
-    ax2.plot(df2.index, df2[col2], color='green', label=col2)
+    line2 = ax2.plot(df2.index, df2[col2], color='green', label=y2_label)
     ax2.set_ylabel(y2_label, color='green')
     ax2.tick_params(axis='y', labelcolor='green')
 
+    spans = []
     for event in events:
-        ax1.axvspan(pd.to_datetime(event["start"]), pd.to_datetime(event["end"]), 
-                    color=event["color"], alpha=0.3, label=event["label"])
+        span = ax1.axvspan(pd.to_datetime(event["start"]), pd.to_datetime(event["end"]), 
+                          color=event["color"], alpha=0.3, label=event["label"])
+        spans.append(span)
+
+    lines = line1 + line2 + spans
+    labels = [l.get_label() for l in lines]
+    ax1.legend(lines, labels, loc="upper left")
 
     fig.suptitle(title)
-    ax1.legend(loc="upper left")
     fig.tight_layout()
     plt.show()
 
-df_arbejdsløshed = load_and_clean_arbejdsløshed(arbejdsløshed_filepath)
-df_bnp = load_and_clean_bnp(bnp_filepath)
-df_ny_rente = load_and_clean_rente(rente_filepath)
+df_unemployment = load_and_clean_unemployment(unemployment_filepath)
+df_gdp = load_and_clean_gdp(gdp_filepath)
+df_new_interest_rate = load_and_clean_interest_rate(interest_rate_filepath)
 
-dual_axis_plot_with_events(df_arbejdsløshed, 'Antal Ledige', df_bnp, 'BNP', 
-                           'Arbejdsløshed vs. BNP', 'Antal ledige', 'BNP', events)
+dual_axis_plot_with_events(df_unemployment, 'Antal Ledige', df_gdp, 'GDP', 
+                          'Unemployment vs. GDP', 'Number of Unemployed', 'GDP', events)
 
-dual_axis_plot_with_events(df_arbejdsløshed, 'Antal Ledige', df_ny_rente, 
-                           'Nationalbankens rente - Udlån', 'Arbejdsløshed vs. Rente', 
-                           'Antal ledige', 'Rente i %', events)
+dual_axis_plot_with_events(df_unemployment, 'Antal Ledige', df_new_interest_rate, 
+                          'Nationalbankens rente - Udlån', 'Unemployment vs. Interest Rate', 
+                          'Number of Unemployed', 'Interest Rate in %', events)
 
-dual_axis_plot_with_events(df_bnp, 'BNP', df_ny_rente, 'Nationalbankens rente - Udlån', 
-                           'BNP vs. Rente', 'BNP', 'Rente i %', events)
+dual_axis_plot_with_events(df_gdp, 'GDP', df_new_interest_rate, 'Nationalbankens rente - Udlån', 
+                          'GDP vs. Interest Rate', 'GDP', 'Interest Rate in %', events)
